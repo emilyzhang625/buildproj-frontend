@@ -13,6 +13,12 @@ h1 {
   margin-bottom: 20px;
 }
 
+h2 {
+	font-size: 1.5rem;
+	color: #4d6e42;
+	margin-bottom: 20px;
+  }
+
 button {
   background-color: #4d6e42;
   color: white;
@@ -94,4 +100,10 @@ button.show-custom {
 
 button.go-button {
   margin-top: 33px;
+}
+
+.progress-bars {
+	display: flex;
+	gap: 5%;
+	justify-content: center;
 }
