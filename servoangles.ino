@@ -26,7 +26,7 @@ WiFiServer server(80);
 
 unsigned long whiskStartTime = 0;
 bool startWhisking = false;
-bool isForwardMotion = true; 
+bool isForwardMotion = true;
 unsigned long lastStepperUpdate = 0;
 
 void setup() {
@@ -59,10 +59,98 @@ void setup() {
   setServoPosition(ARM_BASE_SERVO, 45, 180, 20);
 
   stepper.setMaxSpeed(300); 
-  stepper.setAcceleration(150); 
+  stepper.setAcceleration(150);
 }
 
 void loop() {
   WiFiClient client = server.available();
   if (client) {
-    Serial.println("New client connected
+    Serial.println("New client connected");
+    String request = client.readStringUntil('\r');
+    client.flush();
+    
+    Serial.print("Request: ");
+    Serial.println(request);
+    
+    if (request.indexOf("GET /start") >= 0) {
+      Serial.println("Received /start request");
+      whiskStartTime = millis();
+      startWhisking = true;
+      isForwardMotion = true;
+      client.print("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nWhisking started");
+    } else {
+      client.print("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nEndpoint not found");
+    }
+    client.stop();
+  }
+
+  if (startWhisking) {
+    unsigned long elapsedTime = millis() - whiskStartTime;
+    if (elapsedTime < 60000) { 
+      performWhisking();
+    } else {
+      startWhisking = false;
+      Serial.println("Whisking stopped after 1 minute");
+      resetPositions();
+    }
+  }
+
+  stepper.run();
+}
+
+void performWhisking() {
+  unsigned long currentTime = millis();
+
+  if (currentTime - lastStepperUpdate >= 200) {
+    lastStepperUpdate = currentTime;
+
+    if (isForwardMotion) {
+      stepper.moveTo(50); 
+      isForwardMotion = false;
+    } else {
+      stepper.moveTo(-50);
+      isForwardMotion = true;
+    }
+  }
+}
+
+void resetPositions() {
+  Serial.println("Resetting positions...");
+  setServoPosition(BASE_SERVO, 90, 180, 20);
+  setServoPosition(ARM_BASE_SERVO, 45, 180, 20);
+  setServoPosition(MID_JOINT_SERVO, 40, 180, 20);
+  setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 20);
+}
+
+void setServoPosition(int servo, int targetAngle, int maxAngle, int movementDelay) {
+  int *currentAnglePtr;
+
+  switch (servo) {
+    case BASE_SERVO:
+      currentAnglePtr = &currentBaseServoAngle;
+      break;
+    case ARM_BASE_SERVO:
+      currentAnglePtr = &currentArmBaseServoAngle;
+      break;
+    case MID_JOINT_SERVO:
+      currentAnglePtr = &currentMidJointServoAngle;
+      break;
+    case WHISK_ANGLE_SERVO:
+      currentAnglePtr = &currentWhiskAngleServoAngle;
+      break;
+    default:
+      return; 
+  }
+
+  int currentAngle = *currentAnglePtr;
+  int step = (targetAngle > currentAngle) ? 1 : -1;
+
+  while (currentAngle != targetAngle) {
+    currentAngle += step;
+    int pulse = map(currentAngle, 0, maxAngle, SERVOMIN, SERVOMAX);
+    board1.setPWM(servo, 0, pulse);
+    delay(movementDelay); 
+  }
+
+  *currentAnglePtr = currentAngle;
+}
