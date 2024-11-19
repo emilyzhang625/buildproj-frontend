@@ -1,19 +1,34 @@
-import "./App.css";
-import { useState } from "react";
+import React, { useState } from "react";
 import ProgressBar from "./components/ProgressBar";
-import MatchaPic from "./assets/matchapic.png";
+import "./App.css";
 
 function App() {
   const [loc, setLoc] = useState("1"); // Initial value
   const [activeBar, setActiveBar] = useState(null); // Track which bar is active
-
-  const startTimer = (barId) => {
-    setActiveBar(barId); // Set the active progress bar
-  };
+  const [isWhisking, setIsWhisking] = useState(false); // Track if whisking is happening
 
   const handleSelect = (e) => {
     setLoc(e.target.value);
-    console.log(loc);
+  };
+
+  const startWhisking = async () => {
+    if (!isWhisking) {
+      setIsWhisking(true); // Start the whisking process
+      try {
+        const response = await fetch("http://192.168.4.1/start"); // Make sure this matches your Arduino AP IP
+        if (response.ok) {
+          console.log("Whisking started");
+          setActiveBar(`bar${loc}`);
+          setTimeout(() => {
+            setIsWhisking(false);
+          }, 60000); // Stop whisking after 1 minute
+        } else {
+          console.error("Failed to start whisking");
+        }
+      } catch (error) {
+        console.error("Error connecting to Arduino:", error);
+      }
+    }
   };
 
   return (
@@ -24,31 +39,14 @@ function App() {
         <option value="1">1</option>
         <option value="2">2</option>
       </select>
-      <br></br>
-      <button
-        onClick={() => startTimer(`bar${loc}`)} // Start progress bar based on selected location
-        disabled={activeBar === `bar${loc}`} // Disable button if selected bar is active
-        style={{ marginTop: "10px" }}
-      >
-        Go!
+      <br />
+      <button onClick={startWhisking} disabled={isWhisking}>
+        {isWhisking ? "Whisking..." : "Go!"}
       </button>
       <div className="progress-bars">
-        <ProgressBar
-          id="1"
-          isActive={activeBar === "bar1"}
-          startTimer={() => startTimer("bar1")}
-        />
-        <ProgressBar
-          id="2"
-          isActive={activeBar === "bar2"}
-          startTimer={() => startTimer("bar2")}
-        />
+        <ProgressBar id="1" isActive={activeBar === "bar1"} />
+        <ProgressBar id="2" isActive={activeBar === "bar2"} />
       </div>
-      <img
-        src={MatchaPic}
-        alt="Matcha"
-        style={{ maxWidth: "100%", maxHeight: "300px", marginTop: "2%" }}
-      />
     </div>
   );
 }

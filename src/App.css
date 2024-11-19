@@ -13,11 +13,10 @@ h1 {
   margin-bottom: 20px;
 }
 
-h2 {
-	font-size: 1.5rem;
-	color: #4d6e42;
-	margin-bottom: 20px;
-  }
+label {
+  font-size: 1.5rem;
+  color: #4d6e42;
+}
 
 button {
   background-color: #4d6e42;
@@ -36,74 +35,15 @@ button:hover {
   background-color: #6e8e58;
 }
 
-input {
-  padding: 10px;
+button:disabled {
+  background-color: #a5c3a6;
+  cursor: not-allowed;
+}
+
+select {
   font-size: 1.2rem;
-  width: 50%;
-  border-radius: 10px;
-  border: 2px solid #4d6e42;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #4d6e42;
   margin: 10px;
-  transition: all 0.3s;
-}
-
-input:focus {
-  outline: none;
-  border-color: #6e8e58;
-}
-
-button:focus {
-  outline: none;
-}
-
-button.custom-input-btn {
-  font-size: 1rem;
-  background-color: #f0e6a1;
-  color: #4d6e42;
-}
-
-div.custom-input-container {
-  display: block;
-  margin-top: 20px;
-}
-
-.custom-input-container input {
-  width: 40%;
-  margin-top: 10px;
-  font-size: 1rem;
-}
-
-button.show-custom {
-  font-size: 1rem;
-  background-color: #f0e6a1;
-  color: #4d6e42;
-}
-
-.matcha-buttons-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-.matcha-buttons-container button {
-  font-size: 1.5rem;
-  padding: 10px 20px;
-  margin: 0 10px;
-  border-radius: 8px;
-  background-color: #f0e6a1;
-  color: #4d6e42;
-  font-family: 'Crimson Text', serif; 
-}
-
-.matcha-buttons-container button:hover {
-  background-color: #d1e4a1;
-}
-
-button.go-button {
-  margin-top: 33px;
-}
-
-.progress-bars {
-	display: flex;
-	gap: 5%;
-	justify-content: center;
 }
