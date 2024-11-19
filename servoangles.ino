@@ -27,6 +27,7 @@ WiFiServer server(80);
 unsigned long whiskStartTime = 0;
 bool startWhisking = false;
 bool isForwardMotion = true;
+bool dirtyCup = false;
 unsigned long lastStepperUpdate = 0;
 
 void setup() {
@@ -42,21 +43,21 @@ void setup() {
   board1.begin();
   board1.setPWMFreq(60);
 
-  setServoPosition(WHISK_ANGLE_SERVO, 60, 180, 20);
+  setServoPosition(WHISK_ANGLE_SERVO, 60, 180, 40);
   delay(100);
-  setServoPosition(MID_JOINT_SERVO, 10, 180, 20);
+  setServoPosition(MID_JOINT_SERVO, 10, 180, 40);
   delay(100);
-  setServoPosition(ARM_BASE_SERVO, 30, 180, 20);
+  setServoPosition(ARM_BASE_SERVO, 30, 180, 40);
   delay(100);
-  setServoPosition(BASE_SERVO, 90, 180, 20);
+  setServoPosition(BASE_SERVO, 95, 180, 40);
   delay(100);
-  setServoPosition(MID_JOINT_SERVO, 32, 180, 20);
+  setServoPosition(MID_JOINT_SERVO, 32, 180, 40);
   delay(100);
-  setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 20);
+  setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 40);
   delay(100);
-  setServoPosition(ARM_BASE_SERVO, 40, 180, 20);
+  setServoPosition(ARM_BASE_SERVO, 40, 180, 40);
   delay(100);
-  setServoPosition(ARM_BASE_SERVO, 45, 180, 20);
+  setServoPosition(ARM_BASE_SERVO, 45, 180, 40);
 
   stepper.setMaxSpeed(300); 
   stepper.setAcceleration(150);
@@ -90,9 +91,14 @@ void loop() {
       performWhisking();
     } else {
       startWhisking = false;
+      dirtyCup = true;
       Serial.println("Whisking stopped after 1 minute");
       resetPositions();
     }
+  }
+
+  if (dirtyCup) {
+    setServoPosition(BASE_SERVO, 55, 180, 40);
   }
 
   stepper.run();
