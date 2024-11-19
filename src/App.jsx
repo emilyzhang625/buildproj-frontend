@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import ProgressBar from "./components/ProgressBar";
 import "./App.css";
+import MatchaPic from "./assets/matchapic.png";
 
 function App() {
   const [loc, setLoc] = useState("1"); // Initial value
@@ -11,9 +12,14 @@ function App() {
     setLoc(e.target.value);
   };
 
+  const startTimer = (barId) => {
+    setActiveBar(barId); // Set the active progress bar
+  };
+
   const startWhisking = async () => {
     if (!isWhisking) {
       setIsWhisking(true); // Start the whisking process
+      startTimer(`bar${loc}`);
       try {
         const response = await fetch("http://192.168.4.1/start"); // Make sure this matches your Arduino AP IP
         if (response.ok) {
@@ -44,9 +50,26 @@ function App() {
         {isWhisking ? "Whisking..." : "Go!"}
       </button>
       <div className="progress-bars">
-        <ProgressBar id="1" isActive={activeBar === "bar1"} />
-        <ProgressBar id="2" isActive={activeBar === "bar2"} />
+        <ProgressBar
+          id="1"
+          isActive={activeBar === "bar1"}
+          startTimer={() => startTimer("bar1")}
+        />
+        <ProgressBar
+          id="2"
+          isActive={activeBar === "bar2"}
+          startTimer={() => startTimer("bar2")}
+        />
       </div>
+      <img
+        src={MatchaPic}
+        alt="Matcha"
+        style={{
+          marginTop: "3%",
+          width: "400px",
+          height: "auto",
+        }}
+      ></img>
     </div>
   );
 }
