@@ -9,10 +9,10 @@
 #define MID_JOINT_SERVO_PIN 10
 #define WHISK_ANGLE_SERVO_PIN 11
 
-#define STEPPER_PIN_1 4
-#define STEPPER_PIN_2 5
-#define STEPPER_PIN_3 6
-#define STEPPER_PIN_4 7
+#define STEPPER_PIN_1 3
+#define STEPPER_PIN_2 4
+const int stepPin = 3; 
+const int dirPin = 4; 
 
 Servo baseServo;
 Servo armBaseServo;
@@ -21,23 +21,25 @@ Servo whiskAngleServo;
 
 // Initialize servo angles
 int currentBaseAngle = 90;
-int currentArmBaseAngle = 45;
-int currentMidJointAngle = 32;
-int currentWhiskAngle = 180;
+int currentArmBaseAngle = 35;
+int currentMidJointAngle = 42;
+int currentWhiskAngle = 250;
 
-AccelStepper stepper(AccelStepper::FULL4WIRE, STEPPER_PIN_1, STEPPER_PIN_2, STEPPER_PIN_3, STEPPER_PIN_4);
+// Stepper motor setup
+AccelStepper stepper(AccelStepper::FULL2WIRE, STEPPER_PIN_1, STEPPER_PIN_2);
+bool whiskDirection = true;
+int whiskTargetPosition = 0;
+bool isForwardMotion = true;
+unsigned long lastStepperUpdate = 0;
 
+// WiFi setup
 WiFiServer server(80);
 
 // Queue and state management
-unsigned long whiskStartTime = 0;
-bool isWhisking = false;
 std::queue<int> cupQueue;
+bool isWhisking = false;
+unsigned long whiskStartTime = 0;
 int currentCup = -1;
-
-// Variables for stepper motion
-unsigned long lastStepperUpdate = 0;
-bool isForwardMotion = true;
 
 void setup() {
   Serial.begin(9600);
@@ -53,9 +55,27 @@ void setup() {
   whiskAngleServo.attach(WHISK_ANGLE_SERVO_PIN);
 
   initializeServos();
+
+  // Initialize stepper motor
+  stepper.setMaxSpeed(40);        // Set maximum speed
+  stepper.setAcceleration(10000);   // Set acceleration
+  stepper.setCurrentPosition(0);  // Start position       // Set initial position
+  int stepsPerDegree = 200 / 360; // Assuming 200 steps per full revolution
+  int targetPosition = 20 * stepsPerDegree; // 20-degree move
+
+  // Move to the target position
+  stepper.moveTo(targetPosition);
+  stepper.move(targetPosition);
+  stepper.run();
+
+  // Run the stepper until it reaches the position
+//   while (stepper.distanceToGo() != 0) {
+//     stepper.run();
+//   }
 }
 
 void loop() {
+  // Handle WiFi client requests
   WiFiClient client = server.available();
   if (client) {
     String request = client.readStringUntil('\r');
@@ -75,8 +95,13 @@ void loop() {
     client.stop();
   }
 
+  // Process cup queue
   processQueue();
-  stepper.run();
+
+  // Run stepper motor for whisking
+  if (isWhisking) {
+    performWhisking();
+  }
 }
 
 void initializeServos() {
@@ -96,10 +121,64 @@ int parseCupLocation(String request) {
   return -1;
 }
 
+void performWhisking() {
+  unsigned int smallRangeSteps = 25; // Define a small number of steps for limited motion
+  unsigned long currentTime = millis();
+
+  // Check if enough time has passed to toggle the stepper's position
+  if (currentTime - lastStepperUpdate >= 100) { // Adjust timing as needed for smoother motion
+    lastStepperUpdate = currentTime;
+
+    if (isForwardMotion) {
+      // Move forward
+      digitalWrite(dirPin, HIGH); // Set direction to forward
+      for (int x = 0; x < smallRangeSteps; x++) {
+        digitalWrite(stepPin, HIGH);
+        delayMicroseconds(500); // Adjust speed (faster)
+        digitalWrite(stepPin, LOW);
+        delayMicroseconds(500);
+      }
+      Serial.println("Stepper moved forward");
+    } else {
+      // Move backward
+      digitalWrite(dirPin, LOW); // Set direction to backward
+      for (int x = 0; x < smallRangeSteps; x++) {
+        digitalWrite(stepPin, HIGH);
+        delayMicroseconds(500); // Adjust speed (faster)
+        digitalWrite(stepPin, LOW);
+        delayMicroseconds(500);
+      }
+      Serial.println("Stepper moved backward");
+    }
+
+    // Toggle direction
+    isForwardMotion = !isForwardMotion;
+  }
+}
+
+
+// void performWhisking() {
+//   if (stepper.distanceToGo() == 0) { // Check if stepper reached the target
+//     // Toggle direction and set next target position
+//     whiskDirection = !whiskDirection;
+//     whiskTargetPosition = whiskDirection ? 20 : -20;
+//     stepper.moveTo(whiskTargetPosition);
+//     Serial.print("Changing direction: ");
+//     Serial.println(whiskTargetPosition);
+//   }
+
+//   // Smooth motion logic
+//   stepper.run(); // Run the stepper with acceleration profile
+
+//   // Debugging info
+//   Serial.print("Current Position: ");
+//   Serial.println(stepper.currentPosition());
+// }
+
 void processQueue() {
   if (!isWhisking && !cupQueue.empty()) {
     currentCup = cupQueue.front();
-    int targetBaseAngle = (currentCup == 1) ? 90 : 15;
+    int targetBaseAngle = (currentCup == 1) ? 90 : 5;
     moveServo(baseServo, currentBaseAngle, targetBaseAngle, 20);
     isWhisking = true;
     whiskStartTime = millis();
@@ -115,23 +194,6 @@ void processQueue() {
       currentCup = -1;
       moveServo(baseServo, currentBaseAngle, 55, 20); // Move to cleaning position
     }
-  }
-}
-
-void performWhisking() {
-  unsigned long currentTime = millis();
-  if (currentTime - lastStepperUpdate >= 1000) { // Update every 1 second
-    lastStepperUpdate = currentTime;
-
-    if (isForwardMotion) {
-      stepper.moveTo(50); // Move forward
-      Serial.println("Stepper moving forward");
-    } else {
-      stepper.moveTo(-50); // Move backward
-      Serial.println("Stepper moving backward");
-    }
-
-    isForwardMotion = !isForwardMotion; // Toggle direction
   }
 }
 
