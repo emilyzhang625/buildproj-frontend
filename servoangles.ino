@@ -1,35 +1,37 @@
 #include <WiFiS3.h>
-#include <Adafruit_PWMServoDriver.h>
 #include <AccelStepper.h>
+#include <Servo.h> 
 
-#define BASE_SERVO 3
-#define ARM_BASE_SERVO 2
-#define MID_JOINT_SERVO 1
-#define WHISK_ANGLE_SERVO 0
-#define SERVOMIN 125
-#define SERVOMAX 625
+#define BASE_SERVO_PIN 8
+#define ARM_BASE_SERVO_PIN 9
+#define MID_JOINT_SERVO_PIN 10
+#define WHISK_ANGLE_SERVO_PIN 11
 
-#define STEPPER_PIN_1 2
-#define STEPPER_PIN_2 3
-#define STEPPER_PIN_3 4
-#define STEPPER_PIN_4 5
+#define STEPPER_PIN_1 4
+#define STEPPER_PIN_2 5
+#define STEPPER_PIN_3 6
+#define STEPPER_PIN_4 7
 
-int currentBaseServoAngle = 90;
-int currentArmBaseServoAngle = 45;
-int currentMidJointServoAngle = 32;
-int currentWhiskAngleServoAngle = 180;
+#define STEPS_PER_REVOLUTION 200 
 
 AccelStepper stepper(AccelStepper::FULL4WIRE, STEPPER_PIN_1, STEPPER_PIN_2, STEPPER_PIN_3, STEPPER_PIN_4);
-Adafruit_PWMServoDriver board1 = Adafruit_PWMServoDriver(0x40);
-
 WiFiServer server(80);
+
+Servo baseServo;
+Servo armBaseServo;
+Servo midJointServo;
+Servo whiskAngleServo;
+
+int currentBaseAngle = 90;
+int currentArmBaseAngle = 45;
+int currentMidJointAngle = 32;
+int currentWhiskAngle = 180;
 
 unsigned long whiskStartTime = 0;
 bool startWhisking = false;
 bool isForwardMotion = true;
-bool dirtyCup = false;
 unsigned long lastStepperUpdate = 0;
-
+bool isAligning = false;
 void setup() {
   Serial.begin(9600);
 
@@ -37,30 +39,21 @@ void setup() {
   Serial.println("WiFi AP started");
   Serial.print("AP IP address: ");
   Serial.println(WiFi.localIP());
-  
+
   server.begin();
 
-  board1.begin();
-  board1.setPWMFreq(60);
+  baseServo.attach(BASE_SERVO_PIN);
+  armBaseServo.attach(ARM_BASE_SERVO_PIN);
+  midJointServo.attach(MID_JOINT_SERVO_PIN);
+  whiskAngleServo.attach(WHISK_ANGLE_SERVO_PIN);
 
-  setServoPosition(WHISK_ANGLE_SERVO, 60, 180, 40);
-  delay(100);
-  setServoPosition(MID_JOINT_SERVO, 10, 180, 40);
-  delay(100);
-  setServoPosition(ARM_BASE_SERVO, 30, 180, 40);
-  delay(100);
-  setServoPosition(BASE_SERVO, 95, 180, 40);
-  delay(100);
-  setServoPosition(MID_JOINT_SERVO, 32, 180, 40);
-  delay(100);
-  setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 40);
-  delay(100);
-  setServoPosition(ARM_BASE_SERVO, 40, 180, 40);
-  delay(100);
-  setServoPosition(ARM_BASE_SERVO, 45, 180, 40);
+  initializeServos();
 
-  stepper.setMaxSpeed(300); 
-  stepper.setAcceleration(150);
+  stepper.setMaxSpeed(50);    
+  stepper.setAcceleration(25);
+
+  stepper.setCurrentPosition(10); 
+  Serial.println("Stepper initialized at position 0");
 }
 
 void loop() {
@@ -69,10 +62,10 @@ void loop() {
     Serial.println("New client connected");
     String request = client.readStringUntil('\r');
     client.flush();
-    
+
     Serial.print("Request: ");
     Serial.println(request);
-    
+
     if (request.indexOf("GET /start") >= 0) {
       Serial.println("Received /start request");
       whiskStartTime = millis();
@@ -87,76 +80,79 @@ void loop() {
 
   if (startWhisking) {
     unsigned long elapsedTime = millis() - whiskStartTime;
-    if (elapsedTime < 60000) { 
-      performWhisking();
+    if (elapsedTime < 60000) {
+      performWhisking(); 
     } else {
       startWhisking = false;
-      dirtyCup = true;
       Serial.println("Whisking stopped after 1 minute");
-      resetPositions();
+      resetPositions(); 
     }
   }
 
-  if (dirtyCup) {
-    setServoPosition(BASE_SERVO, 55, 180, 40);
+  if (isAligning) {
+    stepper.run();
+    if (!stepper.isRunning()) {
+      isAligning = false; 
+    }
   }
 
-  stepper.run();
+  if (startWhisking || isAligning) {
+    stepper.run();
+  }
 }
 
 void performWhisking() {
   unsigned long currentTime = millis();
 
-  if (currentTime - lastStepperUpdate >= 200) {
+  if (currentTime - lastStepperUpdate >= 1000) { 
     lastStepperUpdate = currentTime;
 
     if (isForwardMotion) {
       stepper.moveTo(50); 
-      isForwardMotion = false;
+      Serial.println("Stepper moving forward");
     } else {
-      stepper.moveTo(-50);
-      isForwardMotion = true;
+      stepper.moveTo(-50); 
+      Serial.println("Stepper moving backward");
     }
+
+    isForwardMotion = !isForwardMotion; 
   }
 }
 
 void resetPositions() {
   Serial.println("Resetting positions...");
-  setServoPosition(BASE_SERVO, 90, 180, 20);
-  setServoPosition(ARM_BASE_SERVO, 45, 180, 20);
-  setServoPosition(MID_JOINT_SERVO, 40, 180, 20);
-  setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 20);
+  moveServo(baseServo, currentBaseAngle, 55, 20);
+  Serial.println("Moved base to water cup position");
+
+  moveServo(armBaseServo, currentArmBaseAngle, 45, 20);  
+  moveServo(midJointServo, currentMidJointAngle, 40, 20); 
+  moveServo(whiskAngleServo, currentWhiskAngle, 180, 20);  
+  alignStepperToWhiskAngle(currentWhiskAngle); 
 }
 
-void setServoPosition(int servo, int targetAngle, int maxAngle, int movementDelay) {
-  int *currentAnglePtr;
+void initializeServos() {
+  Serial.println("Initializing servos...");
+  baseServo.write(currentBaseAngle);
+  armBaseServo.write(currentArmBaseAngle);
+  midJointServo.write(currentMidJointAngle);
+  whiskAngleServo.write(currentWhiskAngle);
+  alignStepperToWhiskAngle(currentWhiskAngle);
+  delay(1000);
+}
 
-  switch (servo) {
-    case BASE_SERVO:
-      currentAnglePtr = &currentBaseServoAngle;
-      break;
-    case ARM_BASE_SERVO:
-      currentAnglePtr = &currentArmBaseServoAngle;
-      break;
-    case MID_JOINT_SERVO:
-      currentAnglePtr = &currentMidJointServoAngle;
-      break;
-    case WHISK_ANGLE_SERVO:
-      currentAnglePtr = &currentWhiskAngleServoAngle;
-      break;
-    default:
-      return; 
-  }
-
-  int currentAngle = *currentAnglePtr;
+void moveServo(Servo &servo, int &currentAngle, int targetAngle, int delayMs) {
   int step = (targetAngle > currentAngle) ? 1 : -1;
 
   while (currentAngle != targetAngle) {
     currentAngle += step;
-    int pulse = map(currentAngle, 0, maxAngle, SERVOMIN, SERVOMAX);
-    board1.setPWM(servo, 0, pulse);
-    delay(movementDelay); 
+    servo.write(currentAngle);
+    delay(delayMs); 
   }
+}
 
-  *currentAnglePtr = currentAngle;
+void alignStepperToWhiskAngle(int whiskAngle) { // fix ts
+  long targetStepperPosition = map(whiskAngle, 0, 180, 0, STEPS_PER_REVOLUTION);
+
+  stepper.moveTo(targetStepperPosition);
+  isAligning = true;
 }
