@@ -1,7 +1,9 @@
 #include <WiFiS3.h>
 #include <AccelStepper.h>
-#include <Servo.h> 
+#include <Servo.h>
+#include <queue>
 
+// Define pins
 #define BASE_SERVO_PIN 8
 #define ARM_BASE_SERVO_PIN 9
 #define MID_JOINT_SERVO_PIN 10
@@ -12,122 +14,69 @@
 #define STEPPER_PIN_3 6
 #define STEPPER_PIN_4 7
 
-#define STEPS_PER_REVOLUTION 200 
-
-AccelStepper stepper(AccelStepper::FULL4WIRE, STEPPER_PIN_1, STEPPER_PIN_2, STEPPER_PIN_3, STEPPER_PIN_4);
-WiFiServer server(80);
-
 Servo baseServo;
 Servo armBaseServo;
 Servo midJointServo;
 Servo whiskAngleServo;
 
+// Initialize servo angles
 int currentBaseAngle = 90;
 int currentArmBaseAngle = 45;
 int currentMidJointAngle = 32;
 int currentWhiskAngle = 180;
 
+AccelStepper stepper(AccelStepper::FULL4WIRE, STEPPER_PIN_1, STEPPER_PIN_2, STEPPER_PIN_3, STEPPER_PIN_4);
+
+WiFiServer server(80);
+
+// Queue and state management
 unsigned long whiskStartTime = 0;
-bool startWhisking = false;
-bool isForwardMotion = true;
+bool isWhisking = false;
+std::queue<int> cupQueue;
+int currentCup = -1;
+
+// Variables for stepper motion
 unsigned long lastStepperUpdate = 0;
-bool isAligning = false;
+bool isForwardMotion = true;
+
 void setup() {
   Serial.begin(9600);
 
+  // Start WiFi in Access Point mode
   WiFi.beginAP("MatchaBot_AP", "matcha123");
-  Serial.println("WiFi AP started");
-  Serial.print("AP IP address: ");
-  Serial.println(WiFi.localIP());
-
   server.begin();
 
+  // Attach servos
   baseServo.attach(BASE_SERVO_PIN);
   armBaseServo.attach(ARM_BASE_SERVO_PIN);
   midJointServo.attach(MID_JOINT_SERVO_PIN);
   whiskAngleServo.attach(WHISK_ANGLE_SERVO_PIN);
 
   initializeServos();
-
-  stepper.setMaxSpeed(50);    
-  stepper.setAcceleration(25);
-
-  stepper.setCurrentPosition(10); 
-  Serial.println("Stepper initialized at position 0");
 }
 
 void loop() {
   WiFiClient client = server.available();
   if (client) {
-    Serial.println("New client connected");
     String request = client.readStringUntil('\r');
     client.flush();
 
-    Serial.print("Request: ");
-    Serial.println(request);
-
-    if (request.indexOf("GET /start") >= 0) {
-      Serial.println("Received /start request");
-      whiskStartTime = millis();
-      startWhisking = true;
-      isForwardMotion = true;
-      client.print("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nWhisking started");
+    if (request.indexOf("/status") >= 0) {
+      sendStatus(client);
     } else {
-      client.print("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nEndpoint not found");
+      int cup = parseCupLocation(request);
+      if (cup != -1) {
+        cupQueue.push(cup);
+        client.print("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nCup added to queue");
+      } else {
+        client.print("HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\n\r\nInvalid request");
+      }
     }
     client.stop();
   }
 
-  if (startWhisking) {
-    unsigned long elapsedTime = millis() - whiskStartTime;
-    if (elapsedTime < 60000) {
-      performWhisking(); 
-    } else {
-      startWhisking = false;
-      Serial.println("Whisking stopped after 1 minute");
-      resetPositions(); 
-    }
-  }
-
-  if (isAligning) {
-    stepper.run();
-    if (!stepper.isRunning()) {
-      isAligning = false; 
-    }
-  }
-
-  if (startWhisking || isAligning) {
-    stepper.run();
-  }
-}
-
-void performWhisking() {
-  unsigned long currentTime = millis();
-
-  if (currentTime - lastStepperUpdate >= 1000) { 
-    lastStepperUpdate = currentTime;
-
-    if (isForwardMotion) {
-      stepper.moveTo(50); 
-      Serial.println("Stepper moving forward");
-    } else {
-      stepper.moveTo(-50); 
-      Serial.println("Stepper moving backward");
-    }
-
-    isForwardMotion = !isForwardMotion; 
-  }
-}
-
-void resetPositions() {
-  Serial.println("Resetting positions...");
-  moveServo(baseServo, currentBaseAngle, 55, 20);
-  Serial.println("Moved base to water cup position");
-
-  moveServo(armBaseServo, currentArmBaseAngle, 45, 20);  
-  moveServo(midJointServo, currentMidJointAngle, 40, 20); 
-  moveServo(whiskAngleServo, currentWhiskAngle, 180, 20);  
-  alignStepperToWhiskAngle(currentWhiskAngle); 
+  processQueue();
+  stepper.run();
 }
 
 void initializeServos() {
@@ -136,23 +85,77 @@ void initializeServos() {
   armBaseServo.write(currentArmBaseAngle);
   midJointServo.write(currentMidJointAngle);
   whiskAngleServo.write(currentWhiskAngle);
-  alignStepperToWhiskAngle(currentWhiskAngle);
   delay(1000);
+}
+
+int parseCupLocation(String request) {
+  int cupIndex = request.indexOf("cup=");
+  if (cupIndex >= 0) {
+    return request.substring(cupIndex + 4).toInt();
+  }
+  return -1;
+}
+
+void processQueue() {
+  if (!isWhisking && !cupQueue.empty()) {
+    currentCup = cupQueue.front();
+    int targetBaseAngle = (currentCup == 1) ? 90 : 15;
+    moveServo(baseServo, currentBaseAngle, targetBaseAngle, 20);
+    isWhisking = true;
+    whiskStartTime = millis();
+  }
+
+  if (isWhisking) {
+    unsigned long elapsedTime = millis() - whiskStartTime;
+    if (elapsedTime < 10000) { // Whisking duration: 10 seconds for testing
+      performWhisking();
+    } else {
+      isWhisking = false;
+      cupQueue.pop(); // Remove finished cup
+      currentCup = -1;
+      moveServo(baseServo, currentBaseAngle, 55, 20); // Move to cleaning position
+    }
+  }
+}
+
+void performWhisking() {
+  unsigned long currentTime = millis();
+  if (currentTime - lastStepperUpdate >= 1000) { // Update every 1 second
+    lastStepperUpdate = currentTime;
+
+    if (isForwardMotion) {
+      stepper.moveTo(50); // Move forward
+      Serial.println("Stepper moving forward");
+    } else {
+      stepper.moveTo(-50); // Move backward
+      Serial.println("Stepper moving backward");
+    }
+
+    isForwardMotion = !isForwardMotion; // Toggle direction
+  }
 }
 
 void moveServo(Servo &servo, int &currentAngle, int targetAngle, int delayMs) {
   int step = (targetAngle > currentAngle) ? 1 : -1;
-
   while (currentAngle != targetAngle) {
     currentAngle += step;
     servo.write(currentAngle);
-    delay(delayMs); 
+    delay(delayMs);
   }
 }
 
-void alignStepperToWhiskAngle(int whiskAngle) { // fix ts
-  long targetStepperPosition = map(whiskAngle, 0, 180, 0, STEPS_PER_REVOLUTION);
-
-  stepper.moveTo(targetStepperPosition);
-  isAligning = true;
+void sendStatus(WiFiClient &client) {
+  String response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{";
+  response += "\"queue\": [";
+  std::queue<int> tempQueue = cupQueue;
+  while (!tempQueue.empty()) {
+    response += String(tempQueue.front());
+    tempQueue.pop();
+    if (!tempQueue.empty()) response += ",";
+  }
+  response += "],";
+  response += "\"currentCup\": " + String(currentCup) + ",";
+  response += "\"timeLeft\": " + String(isWhisking ? (10000 - (millis() - whiskStartTime)) / 1000 : 0); // 10 seconds for testing
+  response += "}";
+  client.print(response);
 }
