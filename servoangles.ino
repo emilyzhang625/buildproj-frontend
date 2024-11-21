@@ -107,10 +107,62 @@ void loop() {
 void initializeServos() {
   Serial.println("Initializing servos...");
   baseServo.write(currentBaseAngle);
-  armBaseServo.write(currentArmBaseAngle);
-  midJointServo.write(currentMidJointAngle);
-  whiskAngleServo.write(currentWhiskAngle);
+  armBaseServo.write(0); //35
+ // moveServo(armBaseServo, currentBaseAngle, targetBaseAngle, 20);
+  midJointServo.write(0);
+  whiskAngleServo.write(0);
   delay(1000);
+
+//attempt 1
+  // armBaseServo.write(4);
+  // delay(1000);
+  // midJointServo.write(30);
+  // delay(1000);
+  // //whiskAngleServo.write(260);
+  // delay(1000);
+
+//attempt 2
+// armBaseServo.write(15);
+// armBaseServo.write(30);
+// armBaseServo.write(40);
+// delay(1000);
+
+// midJointServo.write(50);
+// delay(1000);
+// whiskAngleServo.write(260);
+// delay(1000);
+
+// midJointServo.write(35);
+// delay(1000);
+// armBaseServo.write(45);
+// delay(1000);
+// // midJointServo.write(32);
+// whiskAngleServo.write(272);
+
+//attempt 3
+armBaseServo.write(40);
+delay(1000);
+midJointServo.write(90);
+delay(1000);
+whiskAngleServo.write(260);
+
+
+
+
+
+
+
+
+
+// raise arm by 45
+
+// raise midjoint by 90
+
+// raise arm to 90
+
+// drop whisk
+
+// drop arm
 }
 
 int parseCupLocation(String request) {
