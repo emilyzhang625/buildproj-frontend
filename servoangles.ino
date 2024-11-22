@@ -9,18 +9,18 @@
 #define MID_JOINT_SERVO 2
 #define WHISK_ANGLE_SERVO 3
 #define SERVOMIN 125
-#define SERVOMAX 700
+#define SERVOMAX 625
 
 // Stepper motor configuration
-#define STEPPER_PIN_1 2
-#define STEPPER_PIN_2 3
+#define STEPPER_PIN_1 4
+#define STEPPER_PIN_2 5
 const int stepsPerRevolution = 200; // Steps per revolution for the stepper
 Stepper myStepper(stepsPerRevolution, STEPPER_PIN_1, STEPPER_PIN_2);
 
-int currentBaseServoAngle = 44;
-int currentArmBaseServoAngle = 44;
-int currentMidJointServoAngle = 29;
-int currentWhiskAngleServoAngle = 59;
+int currentBaseServoAngle = 124;
+int currentArmBaseServoAngle = 4;
+int currentMidJointServoAngle = 4;
+int currentWhiskAngleServoAngle = 9;
 
 Adafruit_PWMServoDriver board1 = Adafruit_PWMServoDriver(0x40);
 WiFiServer server(80);
@@ -61,8 +61,8 @@ void loop() {
     if (request.indexOf("GET /cup=") >= 0) {
       int cupLocation = parseCupLocation(request);
       if (cupLocation != -1) {
-        taskQueue.push(cupLocation == 1 ? 90 : 5); // Adjust angles based on cup positions
-        taskQueue.push(45);
+        taskQueue.push(cupLocation == 1 ? 80 : 165); // Adjust angles based on cup positions
+        taskQueue.push(125);
 
         client.println("HTTP/1.1 200 OK");
         client.println("Access-Control-Allow-Origin: *");
@@ -91,7 +91,6 @@ void loop() {
         finishTask();
       } else {
         performWhisking();
-        setServoPosition(WHISK_ANGLE_SERVO, 175, 180, 40);
       }
     }
   }
@@ -99,64 +98,32 @@ void loop() {
 
 // Initialize servos to starting positions
 void initializeServos() {
-  setServoPosition(BASE_SERVO, 40, 180, 40); // extra movemenr here
-  delay(1000);
-  // setServoPosition(ARM_BASE_SERVO, 30, 180, 40);
-  // delay(100);
-  // setServoPosition(MID_JOINT_SERVO, 10, 180, 40); // theres an extra movement here?
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 160, 180, 40);
-  // delay(100);
-  // setServoPosition(MID_JOINT_SERVO, 40, 180, 40); // theres an extra movement here?
-  // delay(100);
-  // setServoPosition(ARM_BASE_SERVO, 20, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 40);
-  // delay(100);
-  // setServoPosition(MID_JOINT_SERVO, 10, 180, 40); // theres an extra movement here?
-  // delay(100);
+  setServoPosition(BASE_SERVO, 125, 180, 40); // extra movemenr here
+  delay(100);
+  setServoPosition(WHISK_ANGLE_SERVO, 10, 180, 100);
+  delay(100);
+  setServoPosition(ARM_BASE_SERVO, 5, 180, 250);
+  delay(100);
+  setServoPosition(MID_JOINT_SERVO, 5, 180, 80); // theres an extra movement here?
+  delay(100);
+  setServoPosition(ARM_BASE_SERVO, 30, 180, 250);
+  delay(100);
+  setServoPosition(MID_JOINT_SERVO, 10, 180, 80); // theres an extra movement here?
+  delay(100);
+  setServoPosition(WHISK_ANGLE_SERVO, 60, 180, 100);
+  delay(100);
+  setServoPosition(MID_JOINT_SERVO, 26, 180, 40);
+  delay(100);
+  setServoPosition(WHISK_ANGLE_SERVO, 170, 180, 40);
+  delay(100);
+  setServoPosition(ARM_BASE_SERVO, 55, 180, 40);
+  delay(100);
+  setServoPosition(MID_JOINT_SERVO, 24, 180, 40);
+  delay(100);
+  int currentBaseServoAngle = 125;  
   
-  // setServoPosition(MID_JOINT_SERVO, 10, 180, 40); // theres an extra movement here?
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 0, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 20, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 40, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 60, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 80, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 100, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 120, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 140, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 160, 180, 40);
-  // delay(100);
-  // setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 40);
-  // delay(100);
-
-
-  setServoPosition(WHISK_ANGLE_SERVO, 60, 180, 40);
-  delay(100);
-  setServoPosition(MID_JOINT_SERVO, 10, 180, 40); // theres an extra movement here?
-  delay(100);
-  setServoPosition(ARM_BASE_SERVO, 30, 180, 40);
-  delay(100);
-  setServoPosition(MID_JOINT_SERVO, 30, 180, 40);
-  delay(1000);
-  setServoPosition(WHISK_ANGLE_SERVO, 160, 180, 40);
-  delay(1000);
-  setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 40);
-  delay(1000);
-  setServoPosition(ARM_BASE_SERVO, 40, 180, 40);
-  delay(100);
 }
 
-// Start the next task in the queue
 void startNextTask() {
   if (!taskQueue.empty()) {
     int targetPosition = taskQueue.front();
@@ -169,14 +136,22 @@ void startNextTask() {
     Serial.print("Starting task. Target position: ");
     Serial.println(targetPosition);
 
+    // Step 1: Raise the arm first
     setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 40);
-    delay(1500);
+    delay(1000);
     setServoPosition(MID_JOINT_SERVO, 50, 180, 40);
-    delay(1500);
+    delay(1000);
+
+    // Step 2: Move the base servo to the target position
     setServoPosition(BASE_SERVO, targetPosition, 180, 40);
-    delay(1500);
-    setServoPosition(MID_JOINT_SERVO, 30, 180, 40);
-    delay(1500);
+    currentBaseServoAngle = targetPosition; // Update after movement
+    delay(1000);
+
+    // Step 3: Lower the arm to whisking position
+    setServoPosition(MID_JOINT_SERVO, 26, 180, 40);
+    delay(500);
+    setServoPosition(WHISK_ANGLE_SERVO, 165, 180, 40);
+    delay(500);
   } else {
     Serial.println("No tasks left in the queue.");
   }
@@ -193,20 +168,62 @@ void finishTask() {
   }
 }
 
-// Perform whisking movement with the stepper motor
 void performWhisking() {
-  myStepper.setSpeed(30); // Set speed to 30 RPM
+  myStepper.setSpeed(30); // Set stepper speed to 30 RPM
 
-  // Backward motion
-  Serial.println("Starting whisking motion: backward");
-  myStepper.step(-50); // Move backward by 50 steps
-  Serial.println("Finished whisking motion: backward");
+  // Define servo motion range and parameters
+  const int baseServoMinAngle = currentBaseServoAngle - 5; // Minimum angle for side-to-side motion
+  const int baseServoMaxAngle = currentBaseServoAngle + 5; // Maximum angle
+  const int baseServoStep = 1;       // Step size for each movement
+  int baseServoAngle = currentBaseServoAngle;          // Starting position for the servo
+  bool increasing = true;            // Direction flag for servo movement
 
-  // Forward motion
-  Serial.println("Starting whisking motion: forward");
-  myStepper.step(50); // Move forward by 50 steps
-  Serial.println("Finished whisking motion: forward");
+  // Perform whisking
+  for (int i = 0; i < 5; i++) { // Perform 5 whisking cycles
+    // Backward motion
+    Serial.println("Starting whisking motion: backward");
+    myStepper.step(-50); // Move backward by 50 steps
+    Serial.println("Finished whisking motion: backward");
+
+    // Adjust the base servo angle
+    if (increasing) {
+      baseServoAngle += baseServoStep;
+      if (baseServoAngle >= baseServoMaxAngle) {
+        increasing = false; // Reverse direction
+      }
+    } else {
+      baseServoAngle -= baseServoStep;
+      if (baseServoAngle <= baseServoMinAngle) {
+        increasing = true; // Reverse direction
+      }
+    }
+    setServoPosition(BASE_SERVO, baseServoAngle, 180, 5); // Update servo position
+
+    // Forward motion
+    Serial.println("Starting whisking motion: forward");
+    myStepper.step(50); // Move forward by 50 steps
+    Serial.println("Finished whisking motion: forward");
+
+    // Adjust the base servo angle again
+    if (increasing) {
+      baseServoAngle += baseServoStep;
+      if (baseServoAngle >= baseServoMaxAngle) {
+        increasing = false; // Reverse direction
+      }
+    } else {
+      baseServoAngle -= baseServoStep;
+      if (baseServoAngle <= baseServoMinAngle) {
+        increasing = true; // Reverse direction
+      }
+    }
+    setServoPosition(BASE_SERVO, baseServoAngle, 180, 5); // Update servo position
+    int currentBaseServoAngle = baseServoAngle;  
+  }
+
+  // Optionally, set the servo back to a neutral position after whisking
+  // setServoPosition(BASE_SERVO, 125, 180, 5); // Return to neutral position
 }
+
 
 // Function to set servo position using the Adafruit_PWMServoDriver
 void setServoPosition(int servo, int targetAngle, int maxAngle, int movementDelay) {
@@ -250,3 +267,4 @@ int parseCupLocation(String request) {
   }
   return -1;  // Return -1 if "cup=" is not found
 }
+
