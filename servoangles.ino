@@ -121,7 +121,7 @@ void initializeServos() {
   setServoPosition(MID_JOINT_SERVO, 24, 180, 40);
   delay(100);
   int currentBaseServoAngle = 125;  
-  
+
 }
 
 void startNextTask() {
@@ -137,7 +137,7 @@ void startNextTask() {
     Serial.println(targetPosition);
 
     // Step 1: Raise the arm first
-    setServoPosition(WHISK_ANGLE_SERVO, 180, 180, 40);
+    setServoPosition(WHISK_ANGLE_SERVO, 170, 180, 40);
     delay(1000);
     setServoPosition(MID_JOINT_SERVO, 50, 180, 40);
     delay(1000);
@@ -147,8 +147,10 @@ void startNextTask() {
     currentBaseServoAngle = targetPosition; // Update after movement
     delay(1000);
 
+    setServoPosition(WHISK_ANGLE_SERVO, 175, 180, 40);
+    delay(500);
     // Step 3: Lower the arm to whisking position
-    setServoPosition(MID_JOINT_SERVO, 26, 180, 40);
+    setServoPosition(MID_JOINT_SERVO, 22, 180, 40);
     delay(500);
     setServoPosition(WHISK_ANGLE_SERVO, 165, 180, 40);
     delay(500);
@@ -169,10 +171,10 @@ void finishTask() {
 }
 
 void performWhisking() {
-  myStepper.setSpeed(30); // Set stepper speed to 30 RPM
+  myStepper.setSpeed(200); 
 
   // Define servo motion range and parameters
-  const int baseServoMinAngle = currentBaseServoAngle - 5; // Minimum angle for side-to-side motion
+  const int baseServoMinAngle = currentBaseServoAngle - 15; // Minimum angle for side-to-side motion
   const int baseServoMaxAngle = currentBaseServoAngle + 5; // Maximum angle
   const int baseServoStep = 1;       // Step size for each movement
   int baseServoAngle = currentBaseServoAngle;          // Starting position for the servo
@@ -182,7 +184,7 @@ void performWhisking() {
   for (int i = 0; i < 5; i++) { // Perform 5 whisking cycles
     // Backward motion
     Serial.println("Starting whisking motion: backward");
-    myStepper.step(-50); // Move backward by 50 steps
+    myStepper.step(-100); // Move backward by 50 steps
     Serial.println("Finished whisking motion: backward");
 
     // Adjust the base servo angle
@@ -201,7 +203,7 @@ void performWhisking() {
 
     // Forward motion
     Serial.println("Starting whisking motion: forward");
-    myStepper.step(50); // Move forward by 50 steps
+    myStepper.step(100); // Move forward by 50 steps
     Serial.println("Finished whisking motion: forward");
 
     // Adjust the base servo angle again
