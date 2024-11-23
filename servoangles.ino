@@ -81,13 +81,13 @@ void loop() {
     unsigned long elapsedTime = millis() - taskStartTime;
 
     if (isWashing) {
-      if (elapsedTime >= 20000) { // Finish washing after 20 seconds
+      if (elapsedTime >= 3000) { // Finish washing after 20 seconds
         finishTask();
       } else {
         performWhisking();
       }
     } else {
-      if (elapsedTime >= 30000) { // Finish whisking after 30 seconds
+      if (elapsedTime >= 60000) { // Finish whisking after 30 seconds
         finishTask();
       } else {
         performWhisking();
@@ -112,14 +112,14 @@ void initializeServos() {
   delay(100);
   setServoPosition(WHISK_ANGLE_SERVO, 60, 180, 100);
   delay(100);
-  setServoPosition(MID_JOINT_SERVO, 26, 180, 40);
+  setServoPosition(MID_JOINT_SERVO, 27, 180, 40);
   delay(100);
   setServoPosition(WHISK_ANGLE_SERVO, 170, 180, 40);
   delay(100);
-  setServoPosition(ARM_BASE_SERVO, 55, 180, 40);
+  setServoPosition(ARM_BASE_SERVO, 42, 180, 40);
   delay(100);
-  setServoPosition(MID_JOINT_SERVO, 24, 180, 40);
-  delay(100);
+  // setServoPosition(MID_JOINT_SERVO, 28, 180, 40);
+  // delay(100);
   int currentBaseServoAngle = 125;  
 
 }
@@ -150,10 +150,11 @@ void startNextTask() {
     setServoPosition(WHISK_ANGLE_SERVO, 175, 180, 40);
     delay(500);
     // Step 3: Lower the arm to whisking position
-    setServoPosition(MID_JOINT_SERVO, 22, 180, 40);
+    setServoPosition(MID_JOINT_SERVO, 27, 180, 40);
     delay(500);
-    setServoPosition(WHISK_ANGLE_SERVO, 165, 180, 40);
+    setServoPosition(WHISK_ANGLE_SERVO, 163, 180, 40);
     delay(500);
+    
   } else {
     Serial.println("No tasks left in the queue.");
   }
@@ -171,7 +172,7 @@ void finishTask() {
 }
 
 void performWhisking() {
-  myStepper.setSpeed(200); 
+  myStepper.setSpeed(300); 
 
   // Define servo motion range and parameters
   const int baseServoMinAngle = currentBaseServoAngle - 15; // Minimum angle for side-to-side motion
@@ -269,4 +270,3 @@ int parseCupLocation(String request) {
   }
   return -1;  // Return -1 if "cup=" is not found
 }
-
